@@ -8,6 +8,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Lib where
 
@@ -36,11 +37,10 @@ import           Relude                  hiding ( Text
                                                 , evalStateT
                                                 , runStateT
                                                 )
-
+import           Test.QuickCheck
 data Expr
-  = INT Int
-  | STR Text
-  | VAR Text
+  = VAR Text
+  | CON Value
   | LET Text Expr Expr
   | NEG Expr
   | ADD Expr Expr
@@ -51,9 +51,9 @@ data Expr
 
 data Func = SQR
 
-data Type = TINTEGER | TSTRING deriving (Show, Eq)
+data Type = TINTEGER | TSTRING | TFLOAT deriving (Show, Eq)
 
-data Value = I Int | S Text deriving (Show, Eq)
+data Value = I Int | S Text | F Float deriving (Show, Eq)
 
 makeBaseFunctor ''Expr
 
@@ -77,85 +77,60 @@ Left "ADD expected NUMBER type but got TSTRING"
 
 typecheck :: Expr -> Either Text Type
 typecheck = runExcept . flip evalStateT empty . cata go
- where
-  checkNumeric a b op = do
-    a' <- a
-    b' <- b
-    case (a', b') of
-      (TINTEGER, TINTEGER) -> return TINTEGER
-      (TINTEGER, _       ) -> throwError (format "{} expected NUMBER type but got {}" [op, show @Text b'])
-      _                    -> throwError (format "{} expected NUMBER type but got {}" [op, show @Text a'])
-  go :: (MonadState (HashMap Text Type) m, MonadError Text m) => ExprF (m Type) -> m Type
-  go (INTF _          ) = return TINTEGER
-  go (STRF _          ) = return TSTRING
-  go (VARF name       ) = maybe (throwError (format "Variable not in scope: {}" [name])) return . lookup name =<< get
-  go (LETF name t body) = t >>= modify . insert name >> body
-  go (NEGF t          ) = do
-    t' <- t
-    case t' of
-      TINTEGER -> return TINTEGER
-      _        -> throwError (format "Cannot match NUMBER type with {}" [show @Text t'])
-  go (ADDF a b) = checkNumeric a b "ADD"
-  go (SUBF a b) = checkNumeric a b "SUB"
-  go (MULF a b) = checkNumeric a b "MUL"
-  go (DIVF a b) = checkNumeric a b "DIV"
-  go (POWF a b) = checkNumeric a b "POW"
-
-{-
->>> helper = runExcept . flip runStateT empty . evalExpr
-
->>> helper (INT 0)
-Right (I 0,fromList [])
-
->>> helper (STR "A")
-Right (S "A",fromList [])
-
->>> helper (LET "A" (INT 0) (VAR "A"))
-Right (I 0,fromList [("A",I 0)])
-
->>> helper (NEG (INT 0))
-Right (I 0,fromList [])
-
->>> helper (ADD (INT 0) (INT 1))
-Right (I 1,fromList [])
-
->>> helper (SUB (INT 1) (INT 1))
-Right (I 0,fromList [])
-
->>> helper (MUL (INT 2) (INT 8))
-Right (I 16,fromList [])
-
->>> helper (DIV (INT 23) (INT 3))
-Right (I 7,fromList [])
-
->>> helper (POW (INT 1) (INT 3))
-Right (I 1,fromList [])
-
--}
-
+  where
+    checkNumeric a b op = do
+        a' <- a
+        b' <- b
+        case (a', b') of
+            (TFLOAT  , TFLOAT  ) -> return TFLOAT
+            (TINTEGER, TINTEGER) -> return TINTEGER
+            (TSTRING , _       ) -> throwError (format "{} expected NUMBER type but got {}" [op, show @Text b'])
+            _                    -> throwError (format "{} expected NUMBER type but got {}" [op, show @Text a'])
+    go :: (MonadState (HashMap Text Type) m, MonadError Text m) => ExprF (m Type) -> m Type
+    go (CONF (I _)      ) = return TINTEGER
+    go (CONF (S _)      ) = return TSTRING
+    go (CONF (F _)      ) = return TFLOAT
+    go (VARF name       ) = maybe (throwError (format "Variable not in scope: {}" [name])) return . lookup name =<< get
+    go (LETF name t body) = t >>= modify . insert name >> body
+    go (NEGF t          ) = do
+        t' <- t
+        case t' of
+            TINTEGER -> return TINTEGER
+            _        -> throwError (format "Cannot match NUMBER type with {}" [show @Text t'])
+    go (ADDF a b) = checkNumeric a b "ADD"
+    go (SUBF a b) = checkNumeric a b "SUB"
+    go (MULF a b) = checkNumeric a b "MUL"
+    go (DIVF a b) = checkNumeric a b "DIV"
+    go (POWF a b) = checkNumeric a b "POW"
 
 evalExpr :: (MonadState (HashMap Text Value) m, MonadError Text m) => Expr -> m Value
 evalExpr = (>>) . liftEither . typecheck <*> cata go
- where
-  unaryOP x cont = do
-    x' <- x
-    case x' of
-      I x -> return (I (cont x))
-      _   -> error "Impossible to reach here"
-  binaryOP x y cont = do
-    x' <- x
-    y' <- y
-    case (x', y') of
-      (I x, I y) -> return (I (cont x y))
-      _          -> error "Impossible to reach here"
-  go :: (MonadState (HashMap Text Value) m, MonadError Text m) => ExprF (m Value) -> m Value
-  go (INTF x                ) = return (I x)
-  go (STRF x                ) = return (S x)
-  go (VARF name             ) = maybe (throwError (format "Variable not in scope: {}" [name])) return . lookup name =<< get
-  go (LETF name binding body) = binding >>= modify . insert name >> body
-  go (NEGF x                ) = unaryOP x negate
-  go (ADDF a b              ) = binaryOP a b (+)
-  go (SUBF a b              ) = binaryOP a b (-)
-  go (MULF a b              ) = binaryOP a b (*)
-  go (DIVF a b              ) = binaryOP a b div
-  go (POWF a b              ) = binaryOP a b (^)
+  where
+    unaryOP x cont = do
+        x' <- x
+        case x' of
+            I x -> return (I (cont x))
+            _   -> error "Impossible to reach here"
+    binaryOP x y cont = do
+        x' <- x
+        y' <- y
+        case (x', y') of
+            (I x, I y) -> return (I (cont x y))
+            _          -> error "Impossible to reach here"
+    go :: (MonadState (HashMap Text Value) m, MonadError Text m) => ExprF (m Value) -> m Value
+    go (CONF (I x)            ) = return (I x)
+    go (CONF (F x)            ) = return (F x)
+    go (CONF (S x)            ) = return (S x)
+    go (VARF name             ) = maybe (throwError (format "Variable not in scope: {}" [name])) return . lookup name =<< get
+    go (LETF name binding body) = binding >>= modify . insert name >> body
+    go (NEGF x                ) = unaryOP x negate
+    go (ADDF a b              ) = binaryOP a b (+)
+    go (SUBF a b              ) = binaryOP a b (-)
+    go (MULF a b              ) = binaryOP a b (*)
+    go (DIVF a b              ) = do
+        a' <- a
+        b' <- b
+        case (a', b') of
+            (I a, I b) -> return (I (a `div` b))
+            (F a, F b) -> return (F (a / b))
+    go (POWF a b              ) = binaryOP a b (^)

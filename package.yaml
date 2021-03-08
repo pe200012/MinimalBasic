@@ -33,6 +33,7 @@ dependencies:
 - text-format
 - text
 - QuickCheck
+- hspec
 
 library:
   source-dirs: src

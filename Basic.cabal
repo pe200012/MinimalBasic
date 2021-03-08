@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1ef8c591f71db6dc8a949312d59e4283219b93235705ce5e71507809d25658e4
+-- hash: 3b9fc3cb1effad902ba06339739d650e8b14121ee4fe9d86b7749fef2e9d2a52
 
 name:           Basic
 version:        0.1.0.0
@@ -39,6 +39,7 @@ library
     , containers
     , data-fix
     , free
+    , hspec
     , megaparsec
     , mtl
     , recursion-schemes
@@ -63,6 +64,7 @@ executable Basic-exe
     , containers
     , data-fix
     , free
+    , hspec
     , megaparsec
     , mtl
     , recursion-schemes
@@ -88,6 +90,7 @@ test-suite Basic-test
     , containers
     , data-fix
     , free
+    , hspec
     , megaparsec
     , mtl
     , recursion-schemes
