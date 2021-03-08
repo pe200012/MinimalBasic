@@ -34,6 +34,7 @@ import           Relude                  hiding ( Text
                                                 , Type
                                                 , empty
                                                 , evalStateT
+                                                , runStateT
                                                 )
 
 data Expr
@@ -102,35 +103,33 @@ typecheck = runExcept . flip evalStateT empty . cata go
 
 {-
 >>> helper = runExcept . flip runStateT empty . evalExpr
-Variable not in scope:
-  runStateT :: m0 Value -> HashMap k0 v0 -> Except e a
 
 >>> helper (INT 0)
-Variable not in scope: helper :: Expr -> f0
+Right (I 0,fromList [])
 
 >>> helper (STR "A")
-Variable not in scope: helper :: Expr -> f0
+Right (S "A",fromList [])
 
 >>> helper (LET "A" (INT 0) (VAR "A"))
-Variable not in scope: helper :: Expr -> f0
+Right (I 0,fromList [("A",I 0)])
 
 >>> helper (NEG (INT 0))
-Variable not in scope: helper :: Expr -> f0
+Right (I 0,fromList [])
 
 >>> helper (ADD (INT 0) (INT 1))
-Variable not in scope: helper :: Expr -> f0
+Right (I 1,fromList [])
 
 >>> helper (SUB (INT 1) (INT 1))
-Variable not in scope: helper :: Expr -> f0
+Right (I 0,fromList [])
 
 >>> helper (MUL (INT 2) (INT 8))
-Variable not in scope: helper :: Expr -> f0
+Right (I 16,fromList [])
 
 >>> helper (DIV (INT 23) (INT 3))
-Variable not in scope: helper :: Expr -> f0
+Right (I 7,fromList [])
 
 >>> helper (POW (INT 1) (INT 3))
-Variable not in scope: helper :: Expr -> f0
+Right (I 1,fromList [])
 
 -}
 
@@ -155,6 +154,7 @@ evalExpr = (>>) . liftEither . typecheck <*> cata go
   go (VARF name             ) = maybe (throwError (format "Variable not in scope: {}" [name])) return . lookup name =<< get
   go (LETF name binding body) = binding >>= modify . insert name >> body
   go (NEGF x                ) = unaryOP x negate
+  go (ADDF a b              ) = binaryOP a b (+)
   go (SUBF a b              ) = binaryOP a b (-)
   go (MULF a b              ) = binaryOP a b (*)
   go (DIVF a b              ) = binaryOP a b div
