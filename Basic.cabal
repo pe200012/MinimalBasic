@@ -1,0 +1,62 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 4c37b4e4bd795bce1c4e29407ffeb04037fdf2d75bb6f96a0de9da7657da8807
+
+name:           Basic
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/pe200012/Basic#readme>
+homepage:       https://github.com/pe200012/Basic#readme
+bug-reports:    https://github.com/pe200012/Basic/issues
+author:         pe200012
+maintainer:     1326263755@qq.com
+copyright:      2021 pe200012
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/pe200012/Basic
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Paths_Basic
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+  default-language: Haskell2010
+
+executable Basic-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_Basic
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      Basic
+    , base >=4.7 && <5
+  default-language: Haskell2010
+
+test-suite Basic-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_Basic
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      Basic
+    , base >=4.7 && <5
+  default-language: Haskell2010
