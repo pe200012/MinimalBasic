@@ -21,6 +21,18 @@ description:         Please see the README on GitHub at <https://github.com/pe20
 
 dependencies:
 - base >= 4.7 && < 5
+- containers
+- megaparsec
+- unordered-containers
+- recursion-schemes
+- free
+- comonad
+- mtl
+- data-fix
+- relude
+- text-format
+- text
+- QuickCheck
 
 library:
   source-dirs: src
