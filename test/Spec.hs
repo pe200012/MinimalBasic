@@ -4,7 +4,7 @@
 import           Test.Hspec
 import           Test.QuickCheck
 import           Control.Exception              ( evaluate )
-import           Lib
+import           Arithmetic
 import           Data.Either                    ( fromRight, isLeft )
 import           Control.Monad.Except           ( runExcept )
 import           Control.Monad.State.Lazy       ( StateT(runStateT)

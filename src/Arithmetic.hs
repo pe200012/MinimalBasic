@@ -10,7 +10,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Lib where
+module Arithmetic where
 
 import           Control.Monad.Except           ( MonadError(throwError)
                                                 , liftEither

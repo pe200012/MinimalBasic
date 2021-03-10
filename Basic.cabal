@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3b9fc3cb1effad902ba06339739d650e8b14121ee4fe9d86b7749fef2e9d2a52
+-- hash: 225133b77ed1acd2ae163aaf938f359672acad18a09a56e779a8cc0b1bf9a002
 
 name:           Basic
 version:        0.1.0.0
@@ -27,7 +27,7 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      Arithmetic
   other-modules:
       Paths_Basic
   hs-source-dirs:
