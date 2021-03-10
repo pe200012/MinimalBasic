@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a47da076e9fb1f0308031a105b8b9a87c9c04d9155eddc67d696e9c365822a13
+-- hash: a6c5f382f683819419cc30b91c00a718be86605a382fcbd365f75dc71e8fe5d9
 
 name:           Basic
 version:        0.1.0.0
@@ -49,6 +49,7 @@ library
     , text
     , text-format
     , unordered-containers
+    , vector
   default-language: Haskell2010
 
 executable Basic-exe
@@ -57,7 +58,7 @@ executable Basic-exe
       Paths_Basic
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       Basic
     , QuickCheck
@@ -75,6 +76,7 @@ executable Basic-exe
     , text
     , text-format
     , unordered-containers
+    , vector
   default-language: Haskell2010
 
 test-suite Basic-test
@@ -84,7 +86,7 @@ test-suite Basic-test
       Paths_Basic
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       Basic
     , QuickCheck
@@ -102,4 +104,5 @@ test-suite Basic-test
     , text
     , text-format
     , unordered-containers
+    , vector
   default-language: Haskell2010

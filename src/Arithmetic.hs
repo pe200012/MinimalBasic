@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -9,6 +10,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wall#-}
 
 module Arithmetic where
 
@@ -16,33 +18,31 @@ import           Control.Monad.Except           ( MonadError(throwError)
                                                 , liftEither
                                                 , runExcept
                                                 )
-import           Control.Monad.State.Lazy       ( MonadState
-                                                , evalStateT
-                                                , get
-                                                , modify
-                                                , runStateT
-                                                )
-import           Data.Functor.Foldable
-import           Data.Functor.Foldable.TH
-import           Data.HashMap.Lazy              ( HashMap
-                                                , empty
+import           Control.Monad.State.Lazy       ( evalStateT )
+import           Data.Functor.Foldable          ( Recursive(cata) )
+import           Data.Functor.Foldable.TH       ( MakeBaseFunctor(makeBaseFunctor) )
+import           Data.HashMap.Lazy              ( empty
                                                 , insert
                                                 , lookup
+                                                , lookupDefault
                                                 )
 import           Data.Text.Format               ( format )
 import           Data.Text.Lazy                 ( Text )
 import           Relude                  hiding ( Text
                                                 , Type
-                                                , empty
                                                 , evalStateT
-                                                , runStateT
+                                                , empty
                                                 )
-import           Test.QuickCheck
-import           Data.Array                     ( Array )
+import           Data.Vector                    ( Vector
+                                                , (!)
+                                                , (//)
+                                                )
+
 data Expr
   = VAR Text
+  | ARR Expr Int
+  | ASS Text Int Expr
   | CON Value
-  | ARR (Array Int Expr)
   | LET Text Expr Expr
   | NEG Expr
   | ADD Expr Expr
@@ -53,11 +53,12 @@ data Expr
 
 data Func = SQR
 
-data Type = TINTEGER | TSTRING | TFLOAT deriving (Show, Eq)
+data Type = TINTEGER | TSTRING | TFLOAT | TARRAY Int Type | TUNIT deriving (Show, Eq)
 
-data Value = I Int | S Text | F Float deriving (Show, Eq)
+data Value = I Int | S Text | F Float | A (Vector Value) | U deriving (Show, Eq)
 
 makeBaseFunctor ''Expr
+makeBaseFunctor ''Value
 
 {-
 >>> typecheck (VAR "A")
@@ -80,6 +81,12 @@ Left "ADD expected NUMBER type but got TSTRING"
 typecheck :: Expr -> Either Text Type
 typecheck = runExcept . flip evalStateT empty . cata go
   where
+    checkValue = cata $ \case
+        (IF _) -> TINTEGER
+        (FF _) -> TFLOAT
+        (SF _) -> TSTRING
+        (AF a) -> TARRAY (length a) (a ! 0)
+        UF     -> TUNIT
     checkNumeric a b op = do
         a' <- a
         b' <- b
@@ -89,10 +96,27 @@ typecheck = runExcept . flip evalStateT empty . cata go
             (TSTRING , _       ) -> throwError (format "{} expected NUMBER type but got {}" [op, show @Text b'])
             _                    -> throwError (format "{} expected NUMBER type but got {}" [op, show @Text a'])
     go :: (MonadState (HashMap Text Type) m, MonadError Text m) => ExprF (m Type) -> m Type
-    go (CONF (I _)      ) = return TINTEGER
-    go (CONF (S _)      ) = return TSTRING
-    go (CONF (F _)      ) = return TFLOAT
-    go (VARF name       ) = maybe (throwError (format "Variable not in scope: {}" [name])) return . lookup name =<< get
+    go (CONF (I _)) = return TINTEGER
+    go (CONF (S _)) = return TSTRING
+    go (CONF (F _)) = return TFLOAT
+    go (CONF (A a)) = return (TARRAY (length a) (checkValue (a ! 0)))
+    go (CONF U    ) = return TUNIT
+    go (VARF name ) = maybe (throwError (format "Variable not in scope: {}" [name])) return . lookup name =<< get
+    go (ARRF t i  ) = do
+        t' <- t
+        case t' of
+            TARRAY b t | b > i     -> return t
+                       | otherwise -> throwError (format "Access beyond array boundary: {}" [i])
+            _ -> throwError (format "Expected Array type but got {}" [show @Text t'])
+    go (ASSF name i b) = do
+        b'  <- b
+        cxt <- get
+        case lookup name cxt of
+            Just (TARRAY bb t) | bb > i && t == b' -> return TUNIT
+                               | t /= b'           -> throwError (format "Expected {} type but got {}" (show @Text <$> [t, b']))
+                               | otherwise         -> throwError (format "Access beyond array boundary: {}" [i])
+            Just t -> throwError (format "Expected Array type but got {}" [show @Text t])
+            _      -> throwError (format "Variable not in scope: {}" [name])
     go (LETF name t body) = t >>= modify . insert name >> body
     go (NEGF t          ) = do
         t' <- t
@@ -122,9 +146,22 @@ evalExpr = (>>) . liftEither . typecheck <*> cata go
             (F x, F y) -> return (F (f x y))
             _          -> error "Impossible to reach here"
     go :: (MonadState (HashMap Text Value) m, MonadError Text m) => ExprF (m Value) -> m Value
-    go (CONF (I x)            ) = return (I x)
-    go (CONF (F x)            ) = return (F x)
-    go (CONF (S x)            ) = return (S x)
+    go (CONF (I x)) = return (I x)
+    go (CONF (F x)) = return (F x)
+    go (CONF (S x)) = return (S x)
+    go (CONF (A x)) = return (A x)
+    go (CONF U    ) = return U
+    go (ARRF a i  ) = do
+        a' <- a
+        case a' of
+            A arr -> return (arr ! i)
+            _     -> error "Impossible to reach here"
+    go (ASSF n i b) = do
+        cxt <- get
+        b'  <- b
+        case lookupDefault (error "Impossible to reach here") n cxt of
+            A arr -> modify (insert n (A $ arr // [(i, b')])) >> return U
+            _     -> error "Impossible to reach here"
     go (VARF name             ) = maybe (throwError (format "Variable not in scope: {}" [name])) return . lookup name =<< get
     go (LETF name binding body) = binding >>= modify . insert name >> body
     go (NEGF x                ) = unaryOP x (negate, negate)
@@ -132,4 +169,4 @@ evalExpr = (>>) . liftEither . typecheck <*> cata go
     go (SUBF a b              ) = binaryOP a b ((-), (-))
     go (MULF a b              ) = binaryOP a b ((*), (*))
     go (DIVF a b              ) = binaryOP a b (div, (/))
-    go (POWF a b) = binaryOP a b ((^), (**))
+    go (POWF a b              ) = binaryOP a b ((^), (**))
