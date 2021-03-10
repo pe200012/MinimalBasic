@@ -38,9 +38,11 @@ import           Relude                  hiding ( Text
                                                 , runStateT
                                                 )
 import           Test.QuickCheck
+import           Data.Array                     ( Array )
 data Expr
   = VAR Text
   | CON Value
+  | ARR (Array Int Expr)
   | LET Text Expr Expr
   | NEG Expr
   | ADD Expr Expr
@@ -106,16 +108,18 @@ typecheck = runExcept . flip evalStateT empty . cata go
 evalExpr :: (MonadState (HashMap Text Value) m, MonadError Text m) => Expr -> m Value
 evalExpr = (>>) . liftEither . typecheck <*> cata go
   where
-    unaryOP x cont = do
+    unaryOP x (i, f) = do
         x' <- x
         case x' of
-            I x -> return (I (cont x))
+            I x -> return (I (i x))
+            F x -> return (F (f x))
             _   -> error "Impossible to reach here"
-    binaryOP x y cont = do
+    binaryOP x y (i, f) = do
         x' <- x
         y' <- y
         case (x', y') of
-            (I x, I y) -> return (I (cont x y))
+            (I x, I y) -> return (I (i x y))
+            (F x, F y) -> return (F (f x y))
             _          -> error "Impossible to reach here"
     go :: (MonadState (HashMap Text Value) m, MonadError Text m) => ExprF (m Value) -> m Value
     go (CONF (I x)            ) = return (I x)
@@ -123,14 +127,9 @@ evalExpr = (>>) . liftEither . typecheck <*> cata go
     go (CONF (S x)            ) = return (S x)
     go (VARF name             ) = maybe (throwError (format "Variable not in scope: {}" [name])) return . lookup name =<< get
     go (LETF name binding body) = binding >>= modify . insert name >> body
-    go (NEGF x                ) = unaryOP x negate
-    go (ADDF a b              ) = binaryOP a b (+)
-    go (SUBF a b              ) = binaryOP a b (-)
-    go (MULF a b              ) = binaryOP a b (*)
-    go (DIVF a b              ) = do
-        a' <- a
-        b' <- b
-        case (a', b') of
-            (I a, I b) -> return (I (a `div` b))
-            (F a, F b) -> return (F (a / b))
-    go (POWF a b              ) = binaryOP a b (^)
+    go (NEGF x                ) = unaryOP x (negate, negate)
+    go (ADDF a b              ) = binaryOP a b ((+), (+))
+    go (SUBF a b              ) = binaryOP a b ((-), (-))
+    go (MULF a b              ) = binaryOP a b ((*), (*))
+    go (DIVF a b              ) = binaryOP a b (div, (/))
+    go (POWF a b) = binaryOP a b ((^), (**))

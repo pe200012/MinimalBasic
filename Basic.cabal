@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 225133b77ed1acd2ae163aaf938f359672acad18a09a56e779a8cc0b1bf9a002
+-- hash: a47da076e9fb1f0308031a105b8b9a87c9c04d9155eddc67d696e9c365822a13
 
 name:           Basic
 version:        0.1.0.0
@@ -28,12 +28,14 @@ source-repository head
 library
   exposed-modules:
       Arithmetic
+      Language
   other-modules:
       Paths_Basic
   hs-source-dirs:
       src
   build-depends:
       QuickCheck
+    , array
     , base >=4.7 && <5
     , comonad
     , containers
@@ -59,6 +61,7 @@ executable Basic-exe
   build-depends:
       Basic
     , QuickCheck
+    , array
     , base >=4.7 && <5
     , comonad
     , containers
@@ -85,6 +88,7 @@ test-suite Basic-test
   build-depends:
       Basic
     , QuickCheck
+    , array
     , base >=4.7 && <5
     , comonad
     , containers
