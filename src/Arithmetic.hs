@@ -28,14 +28,14 @@ import           Data.HashMap.Lazy              ( empty
                                                 )
 import           Data.Text.Format               ( format )
 import           Data.Text.Lazy                 ( Text )
+import           Data.Vector                    ( (!)
+                                                , (//)
+                                                , Vector
+                                                )
 import           Relude                  hiding ( Text
                                                 , Type
-                                                , evalStateT
                                                 , empty
-                                                )
-import           Data.Vector                    ( Vector
-                                                , (!)
-                                                , (//)
+                                                , evalStateT
                                                 )
 
 data Expr
@@ -65,16 +65,22 @@ makeBaseFunctor ''Value
 Left "Variable not in scope: A"
 
 >>> typecheck (LET "A" (STR "bbb") (VAR "A"))
-Right TSTRING
+Data constructor not in scope: STR :: t0 -> Expr
 
 >>> typecheck (ADD (INT 0) (INT 2))
-Right TINTEGER
+Data constructor not in scope: INT :: t0 -> Expr
+Data constructor not in scope: INT :: t1 -> Expr
 
 >>> typecheck (ADD (INT 0) (STR "a"))
-Left "ADD expected NUMBER type but got TSTRING"
+Data constructor not in scope: INT :: t0 -> Expr
+Data constructor not in scope: STR :: t1 -> Expr
 
 >>> typecheck (ADD (STR "b") (STR "a"))
-Left "ADD expected NUMBER type but got TSTRING"
+Data constructor not in scope: STR :: t0 -> Expr
+Data constructor not in scope: STR :: t1 -> Expr
+
+>>> runExcept . flip execStateT empty . evalExpr $ LET "a" (CON (A (singleton (I 1)))) (ASS "a" 0 (CON (I 2)))
+Right (fromList [("a",A [I 2])])
 
 -}
 
